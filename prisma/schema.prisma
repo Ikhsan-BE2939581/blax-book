@@ -26,6 +26,7 @@ model User {
   id          String   @id @default(cuid())
   name        String
   phone       String   @unique
+  password    String
   email       String?
   gamesPlayed Int      @default(0)
   vouchers    Int      @default(0)
@@ -35,6 +36,7 @@ model User {
 
   bookings Booking[]
   lineups  LineupPlayer[]
+  userVouchers Voucher[]
 
   @@map("users")
 }

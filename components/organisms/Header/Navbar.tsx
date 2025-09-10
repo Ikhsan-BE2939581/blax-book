@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ClientAuthManager } from "@/lib/auth";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -29,12 +30,38 @@ export const Navbar: React.FC<HeaderProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = ClientAuthManager.isAuthenticated();
+      const user = ClientAuthManager.getUser();
+      setIsAuthenticated(authenticated);
+      setCurrentUser(user);
+    };
+
+    checkAuth();
+    
+    // Listen for storage changes (for cross-tab authentication)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   const handleLogin = () => {
-    if (phoneNumber.length >= 10) {
-      isLoggedIn = true;
-      setShowLogin(false);
-    }
+    // Redirect to login page instead of inline login
+    router.push('/auth/login');
+    setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    ClientAuthManager.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
   };
 
   useEffect(() => {
@@ -47,6 +74,14 @@ export const Navbar: React.FC<HeaderProps> = ({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Dynamic text color based on scroll state
+  const textColorClass = isScrolled 
+    ? "text-sky-600 hover:text-sky-700" 
+    : "text-white hover:text-sky-100";
+
+  const brandTextColorClass = isScrolled
+    ? "bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent"
+    : "text-white";
   return (
     <>
       <nav
@@ -64,7 +99,7 @@ export const Navbar: React.FC<HeaderProps> = ({
                   <Calendar className="w-4 h-4 text-white" />
                 </div>
                 <button
-                  className="text-xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent"
+                  className={`text-xl font-bold transition-colors duration-300 ${brandTextColorClass}`}
                   onClick={() => router.push("/")}
                 >
                   FootballBook
@@ -76,34 +111,42 @@ export const Navbar: React.FC<HeaderProps> = ({
             <div className="hidden md:flex items-center space-x-6">
               <button
                 onClick={() => router.push("/")}
-                className="text-sm font-medium text-gray-700 hover:text-sky-600 transition-colors"
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
               >
                 Home
               </button>
               <button
                 onClick={() => router.push("/schedule")}
-                className="text-sm font-medium text-gray-700 hover:text-sky-600 transition-colors"
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
               >
                 Schedule
               </button>
               <button
                 onClick={() => router.push("/news")}
-                className="text-sm font-medium text-gray-700 hover:text-sky-600 transition-colors"
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
               >
                 News
               </button>
             </div>
             <div className="flex items-center space-x-4">
-              {isLoggedIn ? (
+              {isAuthenticated && currentUser ? (
                 <div className="flex items-center space-x-2">
                   <Avatar className="ring-2 ring-sky-200">
                     <AvatarFallback className="bg-gradient-to-r from-sky-400 to-blue-500 text-white">
-                      {userName?.[0] || "U"}
+                      {currentUser.name?.[0] || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm font-medium text-gray-700">
-                    {userName || "User"}
+                  <span className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}>
+                    {currentUser.name || "User"}
                   </span>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className={`transition-colors duration-300 ${textColorClass}`}
+                  >
+                    Logout
+                  </Button>
                 </div>
               ) : (
                 <Button
@@ -132,21 +175,30 @@ export const Navbar: React.FC<HeaderProps> = ({
       <Dialog open={showLogin} onOpenChange={setShowLogin}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Login dengan Nomor HP</DialogTitle>
+            <DialogTitle>Quick Login</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="phone">Nomor HP</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="08xxxxxxxxxx"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-              />
+            <p className="text-gray-600 text-center">
+              Access your account or create a new one
+            </p>
+            <div className="flex flex-col space-y-2">
+              <Button onClick={handleLogin} className="w-full" variant="sky">
+                Login / Register
+              </Button>
+              <Button 
+                onClick={() => setShowLogin(false)} 
+                variant="outline" 
+                className="w-full"
+              >
+                Continue as Guest
+              </Button>
             </div>
-            <Button onClick={handleLogin} className="w-full">
-              Login / Daftar
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
             </Button>
           </div>
         </DialogContent>
