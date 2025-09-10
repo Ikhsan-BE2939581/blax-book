@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_users")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String   @unique
+  email       String?
+  gamesPlayed Int      @default(0)
+  vouchers    Int      @default(0)
+  lastPlay    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings Booking[]
+  lineups  LineupPlayer[]
+
+  @@map("users")
+}
+
+model Venue {
+  id          String @id @default(cuid())
+  name        String
+  address     String
+  capacity    Int
+  pricePerPerson Decimal
+  facilities  Json?
+  
+  schedules Schedule[]
+
+  @@map("venues")
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  venueId     String
+  date        DateTime
+  time        String
+  totalSlots  Int
+  bookedSlots Int      @default(0)
+  fee         Decimal
+  type        String   // 'open', 'mix', 'championship'
+  facilities  Json?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  venue    Venue     @relation(fields: [venueId], references: [id])
+  bookings Booking[]
+  lineup   Lineup?
+
+  @@map("schedules")
+}
+
+model Booking {
+  id           String   @id @default(cuid())
+  scheduleId   String
+  userId       String?
+  bookingType  String   // 'individual', 'team'
+  playerCount  Int
+  teamName     String?
+  captainName  String
+  captainPhone String
+  totalAmount  Decimal
+  paymentStatus String  @default("pending")
+  guestData    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@map("bookings")
+}
+
+model Lineup {
+  id         String   @id @default(cuid())
+  scheduleId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  schedule Schedule       @relation(fields: [scheduleId], references: [id])
+  players  LineupPlayer[]
+
+  @@map("lineups")
+}
+
+model LineupPlayer {
+  id       String @id @default(cuid())
+  lineupId String
+  userId   String
+  position String // 'GK', 'DEF', 'MID', 'ATT'
+  rating   Float  @default(0.0)
+
+  lineup Lineup @relation(fields: [lineupId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([lineupId, userId])
+  @@map("lineup_players")
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  excerpt     String
+  content     String
+  imageUrl    String?
+  category    String   @default("general")
+  status      String   @default("draft")
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("news")
+}
+
+model Voucher {
+  id                 String    @id @default(cuid())
+  userId             String
+  title              String
+  description        String
+  discountPercentage Int
+  applicableSchedules Json?
+  expiresAt          DateTime
+  usedAt             DateTime?
+  createdAt          DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("vouchers")
+}
