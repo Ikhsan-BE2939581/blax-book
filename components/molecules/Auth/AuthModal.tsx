@@ -1,12 +1,9 @@
 import { X } from "lucide-react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Phone, Lock, ArrowLeft, LogIn } from "lucide-react";
 import { Button } from "@/components/atoms/Button/Button";
 import { FormField } from "@/components/molecules/FormField/FormField";
-import { PageLayout } from "@/components/templates/PageLayout/PageLayout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ClientAuthManager } from "@/lib/auth";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -37,6 +34,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -44,7 +43,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         onClick={handleClose}
       />
 
-      <div className="relative bg-white rounded-2xl p-8 w-full max-w-md mx-4 shadow-2xl">
+      <div className="relative bg-white rounded-2xl p-8 w-full max-w-md mx-4">
         {/* Close Button */}
         <button
           onClick={handleClose}
@@ -53,7 +52,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <X className="h-5 w-5" />
         </button>
 
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-sky-200/50 p-8">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <LogIn className="w-8 h-8 text-white" />

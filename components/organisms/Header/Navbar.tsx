@@ -3,18 +3,8 @@ import React, { useEffect, useState } from "react";
 import { Calendar, User, Menu, EyeOff, Lock, Phone } from "lucide-react";
 import { Button } from "@/components/atoms/Button/Button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ClientAuthManager } from "@/lib/auth";
 import AuthModal from "@/components/molecules/Auth/AuthModal";
-import { FormField } from "@/components/molecules/FormField/FormField";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -29,9 +19,7 @@ export const Navbar: React.FC<HeaderProps> = ({
 }) => {
   const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -155,7 +143,7 @@ export const Navbar: React.FC<HeaderProps> = ({
                 </div>
               ) : (
                 <Button
-                  onClick={() => setShowLogin(true)}
+                  onClick={() => setIsAuthModalOpen(true)}
                   variant="sky"
                   size="sm"
                 >
@@ -177,87 +165,10 @@ export const Navbar: React.FC<HeaderProps> = ({
         </div>
       </nav>
 
-      <Dialog open={showLogin} onOpenChange={setShowLogin}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Quick Login</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-gray-600 text-center">
-              Access your account or create a new one
-            </p>
-            <div className="flex flex-col space-y-2">
-              <Button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="w-full"
-                variant="sky"
-              >
-                Login / Register
-              </Button>
-              <Button
-                onClick={() => setShowLogin(false)}
-                variant="outline"
-                className="w-full"
-              >
-                Continue as Guest
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Login</DialogTitle>
-          </DialogHeader>
-          <form className="space-y-6">
-            {/* Phone Number Field */}
-            <div className="relative">
-              <Phone className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
-              <FormField
-                label="Phone Number"
-                type="tel"
-                // value={formData.phone}
-                className="pl-10"
-                placeholder="Enter your phone number"
-                required
-              />
-            </div>
-
-            {/* Password Field */}
-            <div className="relative">
-              <Lock className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
-              <FormField
-                className="pl-10 pr-10"
-                placeholder="Enter your password"
-                required
-                label={""}
-              />
-              {/* <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-10 text-sky-400 hover:text-sky-600 transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button> */}
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="sky"
-              className="w-full py-3 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
-            >
-              Sign In
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 };
