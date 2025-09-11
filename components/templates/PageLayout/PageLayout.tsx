@@ -1,6 +1,5 @@
 import React from "react";
 import { Navbar } from "@/components/organisms/Header/Navbar";
-import { LoadingScreen } from "@/components/molecules/LoadingScreen/LoadingScreen";
 
 interface PageLayoutProps {
   children: React.ReactNode;

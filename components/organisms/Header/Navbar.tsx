@@ -1,1 +1,263 @@
-{"code":"rate-limited","message":"You have hit the rate limit. Please upgrade to keep chatting.","providerLimitHit":false,"isRetryable":true}
+import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { Calendar, User, Menu, EyeOff, Lock, Phone } from "lucide-react";
+import { Button } from "@/components/atoms/Button/Button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ClientAuthManager } from "@/lib/auth";
+import AuthModal from "@/components/molecules/Auth/AuthModal";
+import { FormField } from "@/components/molecules/FormField/FormField";
+
+interface HeaderProps {
+  isLoggedIn?: boolean;
+  userName?: string;
+  onMenuClick?: () => void;
+}
+
+export const Navbar: React.FC<HeaderProps> = ({
+  isLoggedIn = false,
+  userName,
+  onMenuClick,
+}) => {
+  const router = useRouter();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authenticated = ClientAuthManager.isAuthenticated();
+      const user = ClientAuthManager.getUser();
+      setIsAuthenticated(authenticated);
+      setCurrentUser(user);
+    };
+
+    checkAuth();
+
+    // Listen for storage changes (for cross-tab authentication)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+  const handleLogin = () => {
+    // Redirect to login page instead of inline login
+    router.push("/auth/login");
+    setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    ClientAuthManager.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      setIsScrolled(scrollTop > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Dynamic text color based on scroll state
+  const textColorClass = isScrolled
+    ? "text-sky-600 hover:text-sky-700"
+    : "text-white hover:text-sky-100";
+
+  const brandTextColorClass = isScrolled
+    ? "bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent"
+    : "text-white";
+  return (
+    <>
+      <nav
+        className={`fixed top-4 left-4 right-4 z-50 rounded-2xl transition-all duration-300 ${
+          isScrolled
+            ? "bg-white/95 backdrop-blur-md shadow-lg border border-gray-200/20"
+            : "bg-white/10 backdrop-blur-sm border border-white/20"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-sky-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                  <Calendar className="w-4 h-4 text-white" />
+                </div>
+                <button
+                  className={`text-xl font-bold transition-colors duration-300 ${brandTextColorClass}`}
+                  onClick={() => router.push("/")}
+                >
+                  FootballBook
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-6">
+              <button
+                onClick={() => router.push("/")}
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => router.push("/schedule")}
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
+              >
+                Schedule
+              </button>
+              <button
+                onClick={() => router.push("/news")}
+                className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
+              >
+                News
+              </button>
+            </div>
+            <div className="flex items-center space-x-4">
+              {isAuthenticated && currentUser ? (
+                <div className="flex items-center space-x-2">
+                  <Avatar className="ring-2 ring-sky-200">
+                    <AvatarFallback className="bg-gradient-to-r from-sky-400 to-blue-500 text-white">
+                      {currentUser.name?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span
+                    className={`text-sm font-medium transition-colors duration-300 ${textColorClass}`}
+                  >
+                    {currentUser.name || "User"}
+                  </span>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className={`transition-colors duration-300 ${textColorClass}`}
+                  >
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setShowLogin(true)}
+                  variant="sky"
+                  size="sm"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Login
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onMenuClick}
+                className="md:hidden"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <Dialog open={showLogin} onOpenChange={setShowLogin}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quick Login</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-600 text-center">
+              Access your account or create a new one
+            </p>
+            <div className="flex flex-col space-y-2">
+              <Button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="w-full"
+                variant="sky"
+              >
+                Login / Register
+              </Button>
+              <Button
+                onClick={() => setShowLogin(false)}
+                variant="outline"
+                className="w-full"
+              >
+                Continue as Guest
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAuthModalOpen} onOpenChange={setIsAuthModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Login</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-6">
+            {/* Phone Number Field */}
+            <div className="relative">
+              <Phone className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
+              <FormField
+                label="Phone Number"
+                type="tel"
+                // value={formData.phone}
+                className="pl-10"
+                placeholder="Enter your phone number"
+                required
+              />
+            </div>
+
+            {/* Password Field */}
+            <div className="relative">
+              <Lock className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
+              <FormField
+                className="pl-10 pr-10"
+                placeholder="Enter your password"
+                required
+                label={""}
+              />
+              {/* <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-10 text-sky-400 hover:text-sky-600 transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button> */}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              variant="sky"
+              className="w-full py-3 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+            >
+              Sign In
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
