@@ -46,6 +46,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 const mockSchedules = [
   {
@@ -93,20 +94,31 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentAdmin, setCurrentAdmin] = useState<any>(null);
   const [selectedTab, setSelectedTab] = useState("overview");
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [showNewsDialog, setShowNewsDialog] = useState(false);
 
   useEffect(() => {
     // Check if admin is authenticated
-    // This is a simple check - in production, use proper JWT/session validation
     const checkAuth = () => {
       const isLoggedIn = localStorage.getItem("adminLoggedIn") === "true";
+      const adminData = localStorage.getItem("adminUser");
+      
       if (!isLoggedIn) {
-        window.location.href = "/a/login";
+        toast({
+          title: "Access Denied",
+          description: "Please login to access the admin dashboard",
+          variant: "destructive",
+        });
+        router.push("/a/login");
         return;
       }
+      
       setIsAuthenticated(true);
+      if (adminData) {
+        setCurrentAdmin(JSON.parse(adminData));
+      }
       setIsLoading(false);
     };
 
@@ -115,7 +127,14 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("adminLoggedIn");
-    window.location.href = "/a/login";
+    localStorage.removeItem("adminUser");
+    
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out",
+    });
+    
+    router.push("/a/login");
   };
 
   if (isLoading) {
@@ -153,7 +172,9 @@ export default function AdminDashboard() {
                 Logout
               </Button>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Administrator</span>
+                <span className="text-sm text-gray-600">
+                  {currentAdmin?.name || 'Administrator'}
+                </span>
               </div>
             </div>
           </div>

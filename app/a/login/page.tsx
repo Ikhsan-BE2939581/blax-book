@@ -1,46 +1,85 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Lock, User, ArrowLeft, Shield } from "lucide-react";
+import { Eye, EyeOff, Lock, User, ArrowLeft, Shield, Mail } from "lucide-react";
 import { Button } from "@/components/atoms/Button/Button";
 import { FormField } from "@/components/molecules/FormField/FormField";
 import { PageLayout } from "@/components/templates/PageLayout/PageLayout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 export default function AdminLogin() {
+  const router = useRouter();
+  const [isLogin, setIsLogin] = useState(true);
   const [credentials, setCredentials] = useState({
-    username: "",
+    email: "",
     password: "",
+    name: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const endpoint = isLogin ? '/api/auth/admin/login' : '/api/auth/admin/register';
+      const payload = isLogin 
+        ? { email: credentials.email, password: credentials.password }
+        : { email: credentials.email, password: credentials.password, name: credentials.name };
 
-      // Demo credentials check
-      if (
-        credentials.username === "admin" &&
-        credentials.password === "admin123"
-      ) {
-        // In a real app, you'd handle authentication properly
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
         localStorage.setItem("adminLoggedIn", "true");
-        window.location.href = "/admin";
+        localStorage.setItem("adminUser", JSON.stringify(result.data.user));
+        
+        setSuccess(isLogin ? "Login successful!" : "Registration successful!");
+        toast({
+          title: "Success",
+          description: isLogin ? "Welcome back!" : "Account created successfully!",
+        });
+        
+        setTimeout(() => {
+          router.push("/admin");
+        }, 1000);
       } else {
-        setError("Invalid credentials. Please try again.");
+        setError(result.error || "Authentication failed");
+        toast({
+          title: "Error",
+          description: result.error || "Authentication failed",
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      setError("Login failed. Please try again.");
+      const errorMessage = "Network error. Please try again.";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setCredentials(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -71,29 +110,50 @@ export default function AdminLogin() {
                 <Shield className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-sky-700 to-blue-700 bg-clip-text text-transparent">
-                Admin Portal
+                {isLogin ? "Admin Portal" : "Create Admin Account"}
               </h1>
-              <p className="text-sky-600 mt-2">Secure access to dashboard</p>
+              <p className="text-sky-600 mt-2">
+                {isLogin ? "Secure access to dashboard" : "Register for admin access"}
+              </p>
             </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {success && (
+                <Alert className="bg-green-50 border-green-200 text-green-700">
+                  <AlertDescription>{success}</AlertDescription>
+                </Alert>
+              )}
+
               {error && (
                 <Alert className="bg-red-50 border-red-200 text-red-700">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
+              {!isLogin && (
+                <div className="relative">
+                  <User className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
+                  <FormField
+                    label="Full Name"
+                    type="text"
+                    value={credentials.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="pl-10"
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+              )}
+
               <div className="relative">
-                <User className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
+                <Mail className="absolute left-3 top-10 text-sky-400 w-4 h-4 z-10" />
                 <FormField
-                  label="Username"
-                  type="text"
-                  value={credentials.username}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, username: e.target.value })
-                  }
+                  label="Email"
+                  type="email"
+                  value={credentials.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
                   className="pl-10"
-                  placeholder="Enter username"
+                  placeholder="Enter your email"
                   required
                 />
               </div>
@@ -104,9 +164,7 @@ export default function AdminLogin() {
                   label="Password"
                   type={showPassword ? "text" : "password"}
                   value={credentials.password}
-                  onChange={(e) =>
-                    setCredentials({ ...credentials, password: e.target.value })
-                  }
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   className="pl-10 pr-10"
                   placeholder="Enter password"
                   required
@@ -130,13 +188,55 @@ export default function AdminLogin() {
                 className="w-full py-3 text-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                 loading={loading}
               >
-                {loading ? "Signing in..." : "Sign In"}
+                {loading 
+                  ? (isLogin ? "Signing in..." : "Creating account...") 
+                  : (isLogin ? "Sign In" : "Create Account")
+                }
               </Button>
             </form>
 
+            {/* Toggle between Login/Register */}
+            <div className="mt-6 pt-6 border-t border-sky-200 text-center">
+              <p className="text-gray-600">
+                {isLogin ? "Don't have an admin account?" : "Already have an account?"}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setSuccess('');
+                  setCredentials({ email: '', password: '', name: '' });
+                }}
+                className="mt-2 text-sky-600 hover:text-sky-700 font-medium transition-colors"
+              >
+                {isLogin ? 'Create admin account' : 'Sign in instead'}
+              </button>
+            </div>
+
             <div className="mt-6 pt-6 border-t border-sky-200">
               <div className="text-center text-sky-600 text-sm">
-                <p className="mb-2 font-medium">Demo Credentials:</p>
+                {isLogin && (
+                  <>
+                    <p className="mb-2 font-medium">Demo Credentials:</p>
+                    <div className="bg-sky-50 rounded-lg p-3">
+                      <p>
+                        <strong>Email:</strong> admin@example.com
+                      </p>
+                      <p>
+                        <strong>Password:</strong> admin123
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </PageLayout>
+  );
+}
                 <div className="bg-sky-50 rounded-lg p-3">
                   <p>
                     <strong>Username:</strong> admin

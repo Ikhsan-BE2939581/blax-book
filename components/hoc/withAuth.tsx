@@ -2,8 +2,84 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClientAuthManager } from '@/lib/auth';
 import { LoadingScreen } from '@/components/molecules/LoadingScreen/LoadingScreen';
+
+/**
+ * Enhanced Authentication Manager
+ * Handles both regular user and admin authentication
+ */
+class EnhancedAuthManager {
+  /**
+   * Check if user is authenticated (regular user)
+   */
+  static isUserAuthenticated(): boolean {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return false;
+      
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp * 1000 > Date.now();
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if admin is authenticated
+   */
+  static isAdminAuthenticated(): boolean {
+    if (typeof window !== 'undefined') {
+      const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+      return isLoggedIn;
+    }
+    return false;
+  }
+
+  /**
+   * Get current user data
+   */
+  static getUser() {
+    if (typeof window !== 'undefined') {
+      const userData = localStorage.getItem('auth_user');
+      return userData ? JSON.parse(userData) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Get current admin data
+   */
+  static getAdmin() {
+    if (typeof window !== 'undefined') {
+      const adminData = localStorage.getItem('adminUser');
+      return adminData ? JSON.parse(adminData) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Logout user
+   */
+  static logoutUser() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+    }
+  }
+
+  /**
+   * Logout admin
+   */
+  static logoutAdmin() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('adminLoggedIn');
+      localStorage.removeItem('adminUser');
+    }
+  }
+}
 
 /**
  * Higher-Order Component for route protection
@@ -14,11 +90,13 @@ export function withAuth<P extends object>(
   options: {
     redirectTo?: string;
     requireAuth?: boolean;
+    adminOnly?: boolean;
   } = {}
 ) {
   const {
     redirectTo = '/auth/login',
-    requireAuth = true
+    requireAuth = true,
+    adminOnly = false
   } = options;
 
   return function AuthenticatedComponent(props: P) {
@@ -28,18 +106,27 @@ export function withAuth<P extends object>(
 
     useEffect(() => {
       const checkAuthentication = () => {
-        const authenticated = ClientAuthManager.isAuthenticated();
+        let authenticated = false;
+        
+        if (adminOnly) {
+          authenticated = EnhancedAuthManager.isAdminAuthenticated();
+        } else {
+          authenticated = EnhancedAuthManager.isUserAuthenticated();
+        }
+        
         setIsAuthenticated(authenticated);
         setIsLoading(false);
 
         // Redirect if authentication requirement is not met
         if (requireAuth && !authenticated) {
           const currentPath = window.location.pathname;
-          const redirectUrl = `${redirectTo}?redirect=${encodeURIComponent(currentPath)}`;
+          const loginPath = adminOnly ? '/a/login' : redirectTo;
+          const redirectUrl = `${loginPath}?redirect=${encodeURIComponent(currentPath)}`;
           router.push(redirectUrl);
         } else if (!requireAuth && authenticated) {
           // Redirect authenticated users away from auth pages
-          router.push('/');
+          const dashboardPath = adminOnly ? '/admin' : '/';
+          router.push(dashboardPath);
         }
       };
 
@@ -52,7 +139,7 @@ export function withAuth<P extends object>(
 
       window.addEventListener('storage', handleStorageChange);
       return () => window.removeEventListener('storage', handleStorageChange);
-    }, [router, requireAuth]);
+    }, [router, requireAuth, adminOnly]);
 
     // Show loading screen while checking authentication
     if (isLoading) {
@@ -78,16 +165,22 @@ export function withAuth<P extends object>(
  */
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [admin, setAdmin] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = () => {
-      const authenticated = ClientAuthManager.isAuthenticated();
-      const userData = ClientAuthManager.getUser();
+      const userAuthenticated = EnhancedAuthManager.isUserAuthenticated();
+      const adminAuthenticated = EnhancedAuthManager.isAdminAuthenticated();
+      const userData = EnhancedAuthManager.getUser();
+      const adminData = EnhancedAuthManager.getAdmin();
       
-      setIsAuthenticated(authenticated);
+      setIsAuthenticated(userAuthenticated);
+      setIsAdminAuthenticated(adminAuthenticated);
       setUser(userData);
+      setAdmin(adminData);
       setLoading(false);
     };
 
@@ -102,16 +195,25 @@ export function useAuth() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const logout = () => {
-    ClientAuthManager.logout();
+  const logoutUser = () => {
+    EnhancedAuthManager.logoutUser();
     setIsAuthenticated(false);
     setUser(null);
   };
 
+  const logoutAdmin = () => {
+    EnhancedAuthManager.logoutAdmin();
+    setIsAdminAuthenticated(false);
+    setAdmin(null);
+  };
+
   return {
     isAuthenticated,
+    isAdminAuthenticated,
     user,
+    admin,
     loading,
-    logout
+    logoutUser,
+    logoutAdmin
   };
 }

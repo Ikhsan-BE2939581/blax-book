@@ -25,6 +25,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useAuth } from "@/components/hoc/withAuth";
+import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
 
 const gameHistory = [
   {
@@ -71,10 +74,12 @@ const vouchers = [
 ];
 
 export default function UserProfile() {
+  const { isAuthenticated, user, logoutUser } = useAuth();
+  const router = useRouter();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [userData, setUserData] = useState({
-    name: "Ahmad Subagja",
-    phone: "08123456789",
+    name: user?.name || "Ahmad Subagja",
+    phone: user?.phone || "08123456789",
     email: "ahmad@example.com",
     joinDate: "2024-06-15",
   });
@@ -89,6 +94,21 @@ export default function UserProfile() {
 
   const progressToVoucher = (stats.gamesPlayed % 10) * 10;
 
+  const handleLogout = () => {
+    logoutUser();
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out",
+    });
+    router.push("/");
+  };
+
+  // Redirect if not authenticated
+  if (!isAuthenticated) {
+    router.push("/auth/login");
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -98,7 +118,14 @@ export default function UserProfile() {
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
             </div>
-            <Button variant="outline">Kembali ke Beranda</Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => router.push("/")}>
+                Kembali ke Beranda
+              </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>

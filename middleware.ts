@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthUtils } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
+
+// JWT secret key (in production, use environment variable)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+/**
+ * Utility function to verify JWT token
+ */
+function verifyToken(token: string): boolean {
+  try {
+    jwt.verify(token, JWT_SECRET);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
 
 /**
  * Protected routes that require authentication
@@ -14,7 +29,8 @@ const protectedRoutes = [
  */
 const publicRoutes = [
   '/auth/login',
-  '/auth/register'
+  '/auth/register',
+  '/a/login'
 ];
 
 /**
@@ -25,11 +41,28 @@ const publicRoutes = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Get token from cookies or headers
-  const token = request.cookies.get('auth_token')?.value || 
-                request.headers.get('authorization')?.replace('Bearer ', '');
+  // Get token from cookies or headers for different auth types
+  let token: string | undefined;
+  let isAuthenticated = false;
 
-  const isAuthenticated = token ? !AuthUtils.isTokenExpired(token) : false;
+  // Check for admin authentication
+  if (pathname.startsWith('/admin') || pathname.startsWith('/a/')) {
+    token = request.cookies.get('admin_token')?.value;
+    if (token) {
+      isAuthenticated = verifyToken(token);
+    } else {
+      // Fallback to localStorage check (client-side)
+      // This will be handled by client-side components
+      isAuthenticated = false;
+    }
+  } else {
+    // Check for regular user authentication
+    token = request.cookies.get('auth_token')?.value || 
+            request.headers.get('authorization')?.replace('Bearer ', '');
+    if (token) {
+      isAuthenticated = verifyToken(token);
+    }
+  }
 
   // Check if current path is protected
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -43,14 +76,25 @@ export function middleware(request: NextRequest) {
 
   // Redirect unauthenticated users from protected routes
   if (isProtectedRoute && !isAuthenticated) {
-    const loginUrl = new URL('/auth/login', request.url);
+    let loginUrl: URL;
+    
+    if (pathname.startsWith('/admin')) {
+      loginUrl = new URL('/a/login', request.url);
+    } else {
+      loginUrl = new URL('/auth/login', request.url);
+    }
+    
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Redirect authenticated users from auth pages
+  // Redirect authenticated users from auth pages to appropriate dashboard
   if (isPublicRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/', request.url));
+    if (pathname.startsWith('/a/login')) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
   }
 
   // Allow the request to continue
