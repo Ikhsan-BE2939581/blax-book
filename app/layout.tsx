@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,9 +37,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Suspense fallback={<LoadingScreen message="Loading application" />}>
-          {children}
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<LoadingScreen message="Loading application" />}>
+            {children}
+          </Suspense>
+        </ErrorBoundary>
         <Toaster />
       </body>
     </html>

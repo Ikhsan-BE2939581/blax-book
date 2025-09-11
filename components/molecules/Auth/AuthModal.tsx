@@ -4,6 +4,8 @@ import { Eye, EyeOff, Phone, Lock, ArrowLeft, LogIn } from "lucide-react";
 import { Button } from "@/components/atoms/Button/Button";
 import { FormField } from "@/components/molecules/FormField/FormField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthService, LoginCredentials } from "@/services/authService";
+import { useNotification } from "@/hooks/useNotification";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -11,6 +13,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const { success, error: showError } = useNotification();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     phone: "",
@@ -19,7 +22,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{
+    phone?: string;
+    password?: string;
+  }>({});
 
   const resetForm = () => {
     setFormData({
@@ -27,11 +33,134 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       password: "",
     });
     setShowPassword(false);
+    setError("");
+    setValidationErrors({});
   };
 
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  /**
+   * Validates form inputs
+   * @returns Boolean indicating if form is valid
+   */
+  const validateForm = (): boolean => {
+    const errors: { phone?: string; password?: string } = {};
+    
+    // Phone validation
+    if (!formData.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (formData.phone.length < 10) {
+      errors.phone = 'Phone number must be at least 10 digits';
+    } else if (!/^\+?[1-9]\d{1,14}$/.test(formData.phone)) {
+      errors.phone = 'Invalid phone number format';
+    }
+    
+    // Password validation
+    if (!formData.password.trim()) {
+      errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  /**
+   * Handles form submission for both login and registration
+   */
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setLoading(true);
+
+    try {
+      const credentials: LoginCredentials = {
+        phone: formData.phone.trim(),
+        password: formData.password,
+      };
+      
+      let result;
+      if (isLogin) {
+        result = await AuthService.login(credentials);
+      } else {
+        result = await AuthService.register(credentials);
+      }
+
+      if (result.success) {
+        // Show success notification
+        success(
+          isLogin ? 'Login Successful!' : 'Registration Successful!',
+          isLogin 
+            ? 'Welcome back! You have been successfully logged in.' 
+            : 'Your account has been created successfully.',
+          4000
+        );
+        
+        // Close modal and reset form
+        handleClose();
+        
+        // Trigger page refresh or navigation if needed
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        // Handle API errors
+        if (result.details && Array.isArray(result.details)) {
+          // Handle validation errors from API
+          const apiErrors: { phone?: string; password?: string } = {};
+          result.details.forEach((detail: any) => {
+            if (detail.path && detail.path[0]) {
+              apiErrors[detail.path[0] as keyof typeof apiErrors] = detail.message;
+            }
+          });
+          setValidationErrors(apiErrors);
+        } else {
+          setError(result.error || 'Authentication failed');
+          showError(
+            isLogin ? 'Login Failed' : 'Registration Failed',
+            result.error || 'Please check your credentials and try again.',
+            6000
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setError(errorMessage);
+      showError(
+        'Connection Error',
+        'Unable to connect to the server. Please check your internet connection and try again.',
+        6000
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handles input field changes and clears validation errors
+   */
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear validation error for this field
+    if (validationErrors[field as keyof typeof validationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+    
+    // Clear general error
+    if (error) {
+      setError('');
+    }
   };
 
   if (!isOpen) return null;
@@ -67,14 +196,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </p>
           </div>
 
-          <form className="space-y-6">
-            {/* Success Message */}
-            {success && (
-              <Alert className="bg-green-50 border-green-200 text-green-700">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
-            )}
-
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Message */}
             {error && (
               <Alert className="bg-red-50 border-red-200 text-red-700">
@@ -89,8 +211,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 label="Phone Number"
                 type="tel"
                 value={formData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
                 className="pl-10"
                 placeholder="Enter your phone number"
+                error={validationErrors.phone}
                 required
               />
             </div>
@@ -102,8 +226,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 label="Password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
                 className="pl-10 pr-10"
                 placeholder="Enter your password"
+                error={validationErrors.password}
                 required
               />
               <button
@@ -147,7 +273,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError("");
-                setSuccess("");
+                setValidationErrors({});
+                setFormData({ phone: "", password: "" });
               }}
               className="mt-2 text-sky-600 hover:text-sky-700 font-medium transition-colors"
             >

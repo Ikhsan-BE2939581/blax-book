@@ -5,6 +5,8 @@ import { Button } from "@/components/atoms/Button/Button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClientAuthManager } from "@/lib/auth";
 import AuthModal from "@/components/molecules/Auth/AuthModal";
+import { NotificationContainer } from "@/components/ui/notification";
+import { useNotification } from "@/hooks/useNotification";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -23,6 +25,7 @@ export const Navbar: React.FC<HeaderProps> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { notifications, success, error } = useNotification();
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -168,6 +171,12 @@ export const Navbar: React.FC<HeaderProps> = ({
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
+      />
+      
+      {/* Notification Container */}
+      <NotificationContainer 
+        notifications={notifications}
+        position="top-right"
       />
     </>
   );
